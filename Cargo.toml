@@ -51,7 +51,3 @@ assets = [
 ]
 [patch."https://github.com/local76/library.git"]
 library = { path = "../library" }
-
-[target.'cfg(target_os = "windows")'.dependencies]
-windows-sys = { version = "0.52", features = ["Win32_System_Console", "Win32_Foundation"] }
-

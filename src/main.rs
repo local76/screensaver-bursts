@@ -3,10 +3,9 @@
     windows_subsystem = "windows"
 )]
 
-mod runner;
 mod bursts;
 
 fn main() {
     let effect = bursts::Bursts::new();
-    runner::run_main(effect, "bursts");
+    library::screensaver_runner::run_main(effect, "bursts");
 }
