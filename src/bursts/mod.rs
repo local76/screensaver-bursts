@@ -73,8 +73,8 @@ impl Bursts {
         self.skyline = vec![0; cols];
         self.skyline_windows = vec![false; cols * rows];
 
-        if self.skyline_style_opt == 1 {
-            return; // Empty sky
+        if self.skyline_style_opt == 1 || rows < 4 || cols == 0 {
+            return; // Empty sky or too small terminal
         }
 
         let mut c = 0;
