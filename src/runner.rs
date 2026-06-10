@@ -1,43 +1,11 @@
 //! Cross-platform screensaver runtime.
 //!
 //! **Taxonomy Classification**: Lifecycle (Foreground) — the runtime
-//! loop that owns the GDI screensaver window on Windows and the raw
-//! terminal on Linux/macOS, dispatches the Screensaver::update /
-//! Screensaver::draw cycle, and handles the screensaver CLI args
-//! (`/s` run, `/c` configure, `/p HWND` preview).
-//!
-//! In library 4.1 this runtime lived in `screensavers/src/trance-core/` as a
-//! separate crate that re-exported `library`. In library 4.2 the
-//! runtime is consolidated here so the 10 r* effect crates in
-//! screensavers/ can become 1-line shim binaries via the
-//! [`screensaver_shim!`] macro:
-//!
-//! ```ignore
-//! library::screensaver_shim!(glyphs, Glyphs, "glyphs");
-//! ```
-//!
-//! The `screensaver-runtime` feature is **default-off** in library
-//! (it pulls in `libc` on non-Windows for the raw-termios terminal
-//! guard, and on Windows the full Win32 GDI windowing stack). The
-//! 10 r* binary crates enable this feature; the 7 r* TUI apps and
-//! other library consumers that don't need a screensaver host loop
-//! do not.
-//!
-//! The Windows path here is currently a **scaffold-only stub**. It
-//! parses the screensaver CLI args correctly but does not yet
-//! implement the full Win32 GDI window loop (HWND creation, WndProc,
-//! timeBeginPeriod(1), GDI BitBlt to HDC, per-monitor DPI awareness,
-//! preview-mode static control subclassing). The full Windows port
-//! is tracked as a follow-up to 4.2; the library surface here is
-//! stable so the Linux path can be wired into the 10 shim binaries
-//! immediately and the Windows path lands incrementally.
+//! loop that owns the console terminal on Windows, Linux, and macOS,
+//! dispatches the Screensaver::update / Screensaver::draw cycle, and
+//! handles screensaver CLI args (`/s` run, `/c` configure, `/p HWND` preview).
 
-#[cfg(not(target_os = "windows"))]
 use std::time::Duration;
-#[cfg(not(target_os = "windows"))]
-use std::io::Write;
-
-#[cfg(not(target_os = "windows"))]
 use library::core::TerminalCell;
 use library::core::screensaver::Screensaver;
 
@@ -55,9 +23,7 @@ pub enum Mode {
 }
 
 /// Parse the standard screensaver CLI args. On Windows the full
-/// `HWND` is also extracted (for `/p:<hwnd>` and `/c:<hwnd>`); the
-/// Linux/non-Windows stub doesn't need an HWND so it just classifies
-/// the mode.
+/// `HWND` is also classified (for `/p:<hwnd>` and `/c:<hwnd>`).
 pub fn parse_args() -> Mode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     
@@ -67,7 +33,7 @@ pub fn parse_args() -> Mode {
         .collect();
 
     if filtered_args.is_empty() {
-        return Mode::ShowUsage;
+        return Mode::Run; // Default to Run (fullscreen demo) when double-clicked or run without args
     }
     for arg in &filtered_args {
         let lower = arg.to_lowercase();
@@ -92,7 +58,7 @@ pub fn parse_args() -> Mode {
 
 /// Print the standard screensaver usage banner for the given name.
 pub fn print_usage(name: &str) {
-    eprintln!("{name} — retro screensaver (library 4.2 screensaver_runtime)");
+    eprintln!("{name} — retro screensaver (screensaver_runtime)");
     eprintln!();
     eprintln!("Usage (Windows):");
     eprintln!("  {name}.scr /s           — run fullscreen");
@@ -107,9 +73,7 @@ pub fn print_usage(name: &str) {
     eprintln!("  --enable-openrgb | /rgb — enable keyboard/device RGB lighting controls via OpenRGB");
 }
 
-/// Run the screensaver with the given effect. Picks the platform
-/// implementation based on `cfg(target_os)`. The 10 r* effect
-/// binaries in screensavers/ all call this.
+/// Run the screensaver with the given effect.
 pub fn run_main<S: Screensaver + 'static>(saver: S, name: &str) {
     let mode = parse_args();
     match mode {
@@ -118,16 +82,12 @@ pub fn run_main<S: Screensaver + 'static>(saver: S, name: &str) {
             std::process::exit(code as i32);
         }
         Mode::Configure => {
-            // Configuration dialogs live in library 4.3; for 4.2 the
-            // configure mode just prints a notice and exits 0.
-            eprintln!("({name}) configuration dialog: not yet implemented in library 4.2.");
-            eprintln!("Edit `HKEY_CURRENT_USER\\Software\\Windows-Screensavers\\{name}`");
-            eprintln!("directly to change options. (4.3 will add a CLI/TUI configurator.)");
+            // Configuration dialog stub
+            eprintln!("({name}) configuration dialog: not yet implemented.");
             std::process::exit(0);
         }
         Mode::Preview => {
-            // Windows-only in 4.2. On non-Windows we run fullscreen
-            // anyway as a fallback so the dev/CI path works.
+            // Windows-only preview window stub. Fall back to fullscreen terminal run on other OS.
             #[cfg(target_os = "windows")]
             {
                 let code = run_preview_stub(saver);
@@ -147,110 +107,128 @@ pub fn run_main<S: Screensaver + 'static>(saver: S, name: &str) {
 }
 
 // ---------------------------------------------------------------------------
-// Windows scaffold
+// Windows Console / Terminal support
 // ---------------------------------------------------------------------------
 
 #[cfg(target_os = "windows")]
-fn run_fullscreen<S: Screensaver + 'static>(_saver: S) -> isize {
-    // library 4.2 scaffold: the full Win32 GDI screensaver window loop
-    // (HWND + WndProc + timeBeginPeriod(1) + BitBlt + per-monitor DPI
-    // awareness + preview-mode static control subclassing) is the
-    // follow-up work tracked in the 4.3 milestone. The 4.2 runtime
-    // ships the CLI parser + arg routing + the public run_main API
-    // surface so the 10 r* effect shim binaries can be wired up.
-    eprintln!("(library 4.2 screensaver_runtime) Windows GDI loop is a 4.3 TODO.");
-    eprintln!("Falling back to no-op for the 4.2 release. Use the screensavers");
-    eprintln!("0.1.x / 1.x r* effect crate binaries on Windows until 4.3 lands.");
-    0
+use windows_sys::Win32::System::Console::{
+    GetStdHandle, GetConsoleMode, SetConsoleMode, GetConsoleScreenBufferInfo,
+    PeekConsoleInputW, CONSOLE_SCREEN_BUFFER_INFO, INPUT_RECORD, KEY_EVENT,
+    STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, ENABLE_ECHO_INPUT, ENABLE_LINE_INPUT,
+    ENABLE_PROCESSED_INPUT, ENABLE_VIRTUAL_TERMINAL_PROCESSING, AllocConsole,
+};
+
+#[cfg(target_os = "windows")]
+struct RawTerminalGuard {
+    stdin_handle: windows_sys::Win32::Foundation::HANDLE,
+    stdout_handle: windows_sys::Win32::Foundation::HANDLE,
+    original_in_mode: u32,
+    original_out_mode: u32,
+}
+
+#[cfg(target_os = "windows")]
+impl RawTerminalGuard {
+    fn enable() -> Option<Self> {
+        unsafe {
+            // Automatically allocate console if we were compiled under windows_subsystem and have none
+            AllocConsole();
+
+            let stdin_handle = GetStdHandle(STD_INPUT_HANDLE);
+            let stdout_handle = GetStdHandle(STD_OUTPUT_HANDLE);
+            if stdin_handle == windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE ||
+               stdout_handle == windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE {
+                return None;
+            }
+            
+            let mut original_in_mode = 0;
+            if GetConsoleMode(stdin_handle, &mut original_in_mode) == 0 {
+                return None;
+            }
+            
+            let mut original_out_mode = 0;
+            let _ = GetConsoleMode(stdout_handle, &mut original_out_mode);
+
+            // Disable line input, echo input, processed input (similar to cfmakeraw)
+            let raw_in_mode = original_in_mode & !(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT | ENABLE_PROCESSED_INPUT);
+            if SetConsoleMode(stdin_handle, raw_in_mode) == 0 {
+                return None;
+            }
+
+            // Enable virtual terminal processing (ANSI escape sequences) on Windows 10+
+            let raw_out_mode = original_out_mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+            let _ = SetConsoleMode(stdout_handle, raw_out_mode);
+
+            Some(Self {
+                stdin_handle,
+                stdout_handle,
+                original_in_mode,
+                original_out_mode,
+            })
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+impl Drop for RawTerminalGuard {
+    fn drop(&mut self) {
+        unsafe {
+            let _ = SetConsoleMode(self.stdin_handle, self.original_in_mode);
+            let _ = SetConsoleMode(self.stdout_handle, self.original_out_mode);
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn get_terminal_size() -> (usize, usize) {
+    unsafe {
+        let stdout_handle = GetStdHandle(STD_OUTPUT_HANDLE);
+        let mut info: CONSOLE_SCREEN_BUFFER_INFO = std::mem::zeroed();
+        if GetConsoleScreenBufferInfo(stdout_handle, &mut info) != 0 {
+            let cols = (info.srWindow.Right - info.srWindow.Left + 1) as usize;
+            let rows = (info.srWindow.Bottom - info.srWindow.Top + 1) as usize;
+            (cols, rows)
+        } else {
+            (80, 24)
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn check_keypress() -> bool {
+    unsafe {
+        let stdin_handle = GetStdHandle(STD_INPUT_HANDLE);
+        let mut num_events = 0;
+        if windows_sys::Win32::System::Console::GetNumberOfConsoleInputEvents(stdin_handle, &mut num_events) == 0 {
+            return false;
+        }
+        if num_events == 0 {
+            return false;
+        }
+
+        let mut buffer: [INPUT_RECORD; 128] = std::mem::zeroed();
+        let mut read = 0;
+        if PeekConsoleInputW(stdin_handle, buffer.as_mut_ptr(), num_events.min(128), &mut read) != 0 {
+            for i in 0..read as usize {
+                let rec = &buffer[i];
+                if rec.EventType == KEY_EVENT as u16 {
+                    let key_event = &rec.Event.KeyEvent;
+                    if key_event.bKeyDown != 0 {
+                        // Consume the event
+                        let mut temp: [INPUT_RECORD; 1] = std::mem::zeroed();
+                        let mut num_read = 0;
+                        let _ = windows_sys::Win32::System::Console::ReadConsoleInputW(stdin_handle, temp.as_mut_ptr(), 1, &mut num_read);
+                        return true;
+                    }
+                }
+            }
+        }
+        false
+    }
 }
 
 #[cfg(target_os = "windows")]
 fn run_preview_stub<S: Screensaver + 'static>(_saver: S) -> isize {
-    eprintln!("(library 4.2 screensaver_runtime) Windows preview mode is a 4.3 TODO.");
-    0
-}
-
-// ---------------------------------------------------------------------------
-// Linux / other (raw-termios terminal)
-// ---------------------------------------------------------------------------
-
-#[cfg(not(target_os = "windows"))]
-fn command_exists(cmd: &str) -> bool {
-    std::process::Command::new("sh")
-        .arg("-c")
-        .arg(format!("command -v {} >/dev/null 2>&1", cmd))
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
-}
-
-#[cfg(not(target_os = "windows"))]
-fn run_fullscreen<S: Screensaver + 'static>(mut saver: S) -> isize {
-    // If running under xscreensaver, embed the terminal window inside the target X11 window.
-    if let Ok(win_id) = std::env::var("XSCREENSAVER_WINDOW") {
-        if std::env::var("TRANCE_EMBEDDED").is_err() {
-            if command_exists("xterm") {
-                let self_exe = std::env::current_exe().unwrap_or_default();
-                let mut cmd = std::process::Command::new("xterm");
-                cmd.args(["-into", &win_id, "-geometry", "120x40", "-e"])
-                    .arg(&self_exe)
-                    .arg("/s")
-                    .env("TRANCE_EMBEDDED", "1");
-                if let Ok(mut child) = cmd.spawn() {
-                    let _ = child.wait();
-                    return 0;
-                }
-            }
-        }
-    }
-
-    let _raw_mode = RawTerminalGuard::enable();
-    let (mut cols, mut rows) = get_terminal_size();
-    // The Screensaver trait's update/draw are the only required
-    // methods; init() is optional with a default no-op via
-    // ScreensaverState. Call it if the saver opted in.
-    saver.init(cols, rows);
-
-    let mut renderer = Renderer::new(cols, rows);
-    let mut grid = vec![TerminalCell::default(); cols * rows];
-    let mut last_frame = std::time::Instant::now();
-
-    // Target ~60 FPS for terminal smooth animations
-    let target_fps = 60u32;
-    let frame_duration = Duration::from_secs_f32(1.0 / target_fps as f32);
-
-    loop {
-        if check_keypress() {
-            break;
-        }
-
-        // Handle terminal resize dynamically
-        let (new_cols, new_rows) = get_terminal_size();
-        if new_cols != cols || new_rows != rows {
-            cols = new_cols;
-            rows = new_rows;
-            grid = vec![TerminalCell::default(); cols * rows];
-            saver.init(cols, rows);
-            renderer = Renderer::new(cols, rows);
-        }
-
-        let now = std::time::Instant::now();
-        let dt = now.duration_since(last_frame);
-        last_frame = now;
-
-        saver.update(dt, cols, rows);
-
-        for cell in &mut grid {
-            *cell = TerminalCell::default();
-        }
-        saver.draw(&mut grid, cols, rows);
-        renderer.render_grid(&grid, cols, rows, saver.has_scanlines());
-
-        let elapsed = now.elapsed();
-        if elapsed < frame_duration {
-            std::thread::sleep(frame_duration - elapsed);
-        }
-    }
+    eprintln!("Windows preview mode is not supported in console mode.");
     0
 }
 
@@ -325,20 +303,102 @@ fn check_keypress() -> bool {
     }
 }
 
+#[cfg(not(target_os = "windows"))]
+fn command_exists(cmd: &str) -> bool {
+    std::process::Command::new("sh")
+        .arg("-c")
+        .arg(format!("command -v {} >/dev/null 2>&1", cmd))
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+// ---------------------------------------------------------------------------
+// Common Fullscreen Animation Loop
+// ---------------------------------------------------------------------------
+
+fn run_fullscreen<S: Screensaver + 'static>(mut saver: S) -> isize {
+    #[cfg(not(target_os = "windows"))]
+    {
+        // If running under xscreensaver, embed the terminal window inside the target X11 window.
+        if let Ok(win_id) = std::env::var("XSCREENSAVER_WINDOW") {
+            if std::env::var("TRANCE_EMBEDDED").is_err() {
+                if command_exists("xterm") {
+                    let self_exe = std::env::current_exe().unwrap_or_default();
+                    let mut cmd = std::process::Command::new("xterm");
+                    cmd.args(["-into", &win_id, "-geometry", "120x40", "-e"])
+                        .arg(&self_exe)
+                        .arg("/s")
+                        .env("TRANCE_EMBEDDED", "1");
+                    if let Ok(mut child) = cmd.spawn() {
+                        let _ = child.wait();
+                        return 0;
+                    }
+                }
+            }
+        }
+    }
+
+    let _raw_mode = RawTerminalGuard::enable();
+    let (mut cols, mut rows) = get_terminal_size();
+    saver.init(cols, rows);
+
+    let mut renderer = Renderer::new(cols, rows);
+    let mut grid = vec![TerminalCell::default(); cols * rows];
+    let mut last_frame = std::time::Instant::now();
+
+    // Target ~60 FPS
+    let target_fps = 60u32;
+    let frame_duration = Duration::from_secs_f32(1.0 / target_fps as f32);
+
+    loop {
+        if check_keypress() {
+            break;
+        }
+
+        // Handle terminal resize dynamically
+        let (new_cols, new_rows) = get_terminal_size();
+        if new_cols != cols || new_rows != rows {
+            cols = new_cols;
+            rows = new_rows;
+            grid = vec![TerminalCell::default(); cols * rows];
+            saver.init(cols, rows);
+            renderer = Renderer::new(cols, rows);
+        }
+
+        let now = std::time::Instant::now();
+        let dt = now.duration_since(last_frame);
+        last_frame = now;
+
+        saver.update(dt, cols, rows);
+
+        for cell in &mut grid {
+            *cell = TerminalCell::default();
+        }
+        saver.draw(&mut grid, cols, rows);
+        renderer.render_grid(&grid, cols, rows, saver.has_scanlines());
+
+        let elapsed = now.elapsed();
+        if elapsed < frame_duration {
+            std::thread::sleep(frame_duration - elapsed);
+        }
+    }
+    0
+}
+
 // ---------------------------------------------------------------------------
 // Differential renderer (only redraws cells that changed)
 // ---------------------------------------------------------------------------
 
-#[cfg(not(target_os = "windows"))]
 struct Renderer {
     _width: usize,
     _height: usize,
     prev_grid: Vec<TerminalCell>,
 }
 
-#[cfg(not(target_os = "windows"))]
 impl Renderer {
     fn new(width: usize, height: usize) -> Self {
+        use std::io::Write;
         // Hide cursor and clear screen
         print!("\x1b[?25l\x1b[2J");
         let _ = std::io::stdout().flush();
@@ -397,68 +457,11 @@ impl Renderer {
     }
 }
 
-#[cfg(not(target_os = "windows"))]
 impl Drop for Renderer {
     fn drop(&mut self) {
+        use std::io::Write;
         // Reset colors, show cursor, clear screen, and go home
         print!("\x1b[0m\x1b[?25h\x1b[2J\x1b[H");
         let _ = std::io::stdout().flush();
     }
-}
-
-/// Generate a Windows-screensaver-compatible `main()` for the given
-/// scene. Place at the root of `src/main.rs` (or any file you point
-/// Cargo's `[[bin]] path` at).
-///
-/// Collapses the 4-line `windows_subsystem` cfg-attr + `fn main()`
-/// boilerplate that each of the 10 `screensavers-*` shim binaries
-/// needs into a single macro invocation.
-///
-/// # Example
-///
-/// In `screensavers-glyphs/src/screensaver_shim.rs`:
-///
-/// ```rust,ignore
-/// library::screensaver_shim!(glyphs, Glyphs, "glyphs");
-/// ```
-///
-/// This expands to a 2-line module:
-///
-/// ```rust,ignore
-/// #[cfg_attr(
-///     all(not(debug_assertions), target_os = "windows"),
-///     windows_subsystem = "windows"
-/// )]
-/// fn main() {
-///     library::screensavers::runtime::run_main(
-///         library::screensavers::glyphs::Glyphs::new(),
-///         "glyphs",
-///     );
-/// }
-/// ```
-///
-/// The `windows_subsystem` attribute is attached to `fn main()` as an
-/// **outer** attribute (not a crate-level inner attribute) so the
-/// macro is parseable in any module context, not just at the crate
-/// root. The linker still picks it up the same way because the
-/// `fn main()` of a `[[bin]]` is the entry point.
-///
-/// The scene module must export `<SceneTy>::new()` returning a type
-/// that implements `Screensaver + 'static`. All 10 scenes in
-/// `library::screensavers` (`Beams`, `Bounce`, `Bursts`, `Chaos`,
-/// `Cosmos`, `Disco`, `Flame`, `Glyphs`, `Gnats`, `Storm`) do.
-#[macro_export]
-macro_rules! screensaver_shim {
-    ($scene_mod:ident, $scene_ty:ident, $name:literal) => {
-        #[cfg_attr(
-            all(not(debug_assertions), target_os = "windows"),
-            windows_subsystem = "windows"
-        )]
-        fn main() {
-            $crate::screensavers::runtime::run_main(
-                $crate::screensavers::$scene_mod::$scene_ty::new(),
-                $name,
-            );
-        }
-    };
 }

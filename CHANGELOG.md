@@ -12,4 +12,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Workspace Collapse**: Replaced local screensaver logic files with a clean 20-line shim importing the consolidated scene from the shared library.
-- **Repository Rename**: Renamed repository and local directory to screensavers-bursts for cleaner ecosystem taxonomy.
+- **Repository Rename**: Renamed repository and local directory to screensaver-bursts for cleaner ecosystem taxonomy.
