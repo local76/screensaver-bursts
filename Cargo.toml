@@ -1,0 +1,50 @@
+[package]
+name = "bursts"
+version = "2026.7.0"
+edition = "2021"
+description = "bursts - retro terminal screensaver effect"
+autobins = false
+
+[[bin]]
+name = "bursts"
+path = "src/main.rs"
+
+[dependencies]
+library = { git = "https://github.com/local76/library.git", branch = "main", default-features = false, features = ["scenes", "screensaver-runtime", "role-application", "lifecycle-foreground", "platform-native"] }
+
+[build-dependencies]
+winres = "0.1"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[package.metadata.deb]
+name = "scene-bursts"
+maintainer = "Screensavers Developer <dev@local76.org>"
+extended-description = "Screensaver effect (bursts) part of the screensavers collection."
+depends = "libc6, xterm"
+section = "utils"
+priority = "optional"
+assets = [
+    ["target/release/bursts", "usr/libexec/screensaver-shims/bursts", "755"],
+    ["assets/scene-bursts.desktop", "usr/share/applications/scene-bursts.desktop", "644"],
+    ["assets/scene-bursts.xml", "usr/share/xscreensaver/config/scene-bursts.xml", "644"]
+]
+
+[package.metadata.generate-rpm]
+name = "scene-bursts"
+version = "2026.7.0"
+release = "1"
+arch = "x86_64"
+summary = "bursts - retro terminal screensaver effect"
+description = "Screensaver effect (bursts) part of the screensavers collection."
+license = "MIT"
+assets = [
+    { source = "target/release/bursts", dest = "/usr/libexec/screensaver-shims/bursts", mode = "755" },
+    { source = "assets/scene-bursts.desktop", dest = "/usr/share/applications/scene-bursts.desktop", mode = "644" },
+    { source = "assets/scene-bursts.xml", dest = "/usr/share/xscreensaver/config/scene-bursts.xml", mode = "644" }
+]

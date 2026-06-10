@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=bursts - retro terminal screensaver effect
+Comment=Screensaver effect: bursts
+Exec=bursts
+Icon=bursts
+Terminal=false
+Categories=Screensaver;
