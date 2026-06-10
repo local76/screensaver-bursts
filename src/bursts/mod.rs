@@ -6,8 +6,6 @@ use library::core::{LcgRng, TerminalCell};
 use std::time::Duration;
 use library::core::screensaver::Screensaver;
 use library::platform::native::sys_info::get_system_info;
-use library::toolkit::rgb_controller::{RgbController, is_openrgb_enabled};
-use library::toolkit::rgb_protocol::RgbColor;
 
 pub mod types;
 pub mod physics;
@@ -31,9 +29,7 @@ pub struct Bursts {
     sys_refresh_timer: f32,
     mem_pressure: f32,
     cpu_load: f32,
-    host_bias: f32,
-    rgb: Option<RgbController>,
-}
+    host_bias: f32,}
 
 impl Default for Bursts {
     fn default() -> Self {
@@ -65,7 +61,6 @@ impl Bursts {
             mem_pressure: sys.mem_used_pct / 100.0,
             cpu_load: 0.4,
             host_bias,
-            rgb: if is_openrgb_enabled() { Some(RgbController::new()) } else { None },
         }
     }
 
@@ -202,12 +197,7 @@ impl Screensaver for Bursts {
         // Process explosions
         for idx in exploded_rockets.into_iter().rev() {
             let rocket = self.rockets.remove(idx);
-            if let Some(ref r) = self.rgb {
-                let color = RgbColor::new(rocket.color.0, rocket.color.1, rocket.color.2);
-                r.flash(color, std::time::Duration::from_millis(300));
-            }
-            
-            // Spawn explosion particles
+// Spawn explosion particles
             let num_particles = self.rng.next_usize(20) + 20;
             for _ in 0..num_particles {
                 let angle = self.rng.next_range(0.0, std::f32::consts::TAU);
