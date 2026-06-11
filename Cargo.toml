@@ -31,9 +31,10 @@ depends = "libc6, xterm"
 section = "utils"
 priority = "optional"
 assets = [
-    ["target/release/bursts", "usr/libexec/screensaver-shims/bursts", "755"],
-    ["assets/scene-bursts.desktop", "usr/share/applications/scene-bursts.desktop", "644"],
-    ["assets/scene-bursts.xml", "usr/share/xscreensaver/config/scene-bursts.xml", "644"]
+    ["target/release/bursts", "usr/libexec/local76/screensavers/bursts", "755"],
+    ["assets/local76-bursts.desktop", "usr/share/applications/local76-bursts.desktop", "644"],
+    ["assets/local76-bursts.xml", "usr/share/xscreensaver/config/local76-bursts.xml", "644"],
+    ["assets/local76-bursts.png", "usr/share/pixmaps/local76-bursts.png", "644"]
 ]
 
 [package.metadata.generate-rpm]
@@ -45,9 +46,10 @@ summary = "bursts - retro terminal screensaver effect"
 description = "Screensaver effect (bursts) part of the screensavers collection."
 license = "MIT"
 assets = [
-    { source = "target/release/bursts", dest = "/usr/libexec/screensaver-shims/bursts", mode = "755" },
-    { source = "assets/scene-bursts.desktop", dest = "/usr/share/applications/scene-bursts.desktop", mode = "644" },
-    { source = "assets/scene-bursts.xml", dest = "/usr/share/xscreensaver/config/scene-bursts.xml", mode = "644" }
+    { source = "target/release/bursts", dest = "/usr/libexec/local76/screensavers/bursts", mode = "755" },
+    { source = "assets/local76-bursts.desktop", dest = "/usr/share/applications/local76-bursts.desktop", mode = "644" },
+    { source = "assets/local76-bursts.xml", dest = "/usr/share/xscreensaver/config/local76-bursts.xml", mode = "644" },
+    { source = "assets/local76-bursts.png", dest = "/usr/share/pixmaps/local76-bursts.png", mode = "644" }
 ]
 [patch."https://github.com/local76/library.git"]
 library = { path = "../library" }

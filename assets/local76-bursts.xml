@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<screensaver name="local76-bursts" _label="Bursts">
+  <command arg="-fullscreen -bg black -fg white -ms black -xrm 'XTerm*pointerColorBackground: black' -xrm 'XTerm*pointerMode: 2' -e /usr/libexec/local76/screensavers/bursts"/>
+  <_description>
+    Retro terminal screensaver effect (bursts) from the screensavers collection.
+  </_description>
+</screensaver>

@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<screensaver name="scene-bursts" _label="bursts - retro terminal screensaver effect">
-  <command arg="-fullscreen -bg black -fg white -e /usr/libexec/screensaver-shims/bursts"/>
-  <_description>
-    Retro terminal screensaver effect (bursts) from the screensavers collection.
-  </_description>
-</screensaver>
