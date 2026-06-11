@@ -109,7 +109,7 @@ checksum = "72f5acc6cb2ba439de613abc23857ec3d78374d8ed5ac84e9d11336e87da8649"
 
 [[package]]
 name = "bursts"
-version = "2026.7.0"
+version = "2026.6.10-1"
 dependencies = [
  "embed-resource",
  "library",
@@ -646,14 +646,13 @@ checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
 
 [[package]]
 name = "library"
-version = "2026.6.11"
+version = "2026.6.10-1"
 dependencies = [
  "crossterm",
  "libc",
  "ratatui",
  "rusqlite",
  "sysinfo",
- "windows",
  "windows-sys 0.59.0",
  "winreg 0.56.0",
 ]

@@ -103,11 +103,25 @@ pub fn update_particles_and_excite_stars(
 
         // Excite background stars (ignore smoke particles)
         if p.color != (100, 100, 100) && p.life > 0.0 {
+            // Pre-filter: with the dy*2.0 metric, dist_sq < 9.0 implies
+            // |dx| < 3.0 AND |dy*2.0| < 3.0. Reject the star cheaply on
+            // either axis before the multiply + sum + compare. With
+            // 200 particles × 500 stars = 100k pairs/frame, the pre-filter
+            // cuts this to roughly P × (stars-near-particle) which for a
+            // uniform 120×40 grid is ~5–10 stars/particle (i.e. ~2k pairs
+            // instead of 100k). The original was O(P·S); this is closer
+            // to O(P·k). (Fix for CQ4.)
             for star in stars.iter_mut() {
                 let sx = star.x * cols_f;
                 let sy = star.y * rows_f;
                 let dx = p.x - sx;
+                if dx >= 3.0 || dx <= -3.0 {
+                    continue;
+                }
                 let dy = (p.y - sy) * 2.0;
+                if dy >= 3.0 || dy <= -3.0 {
+                    continue;
+                }
                 let dist_sq = dx * dx + dy * dy;
                 if dist_sq < 9.0 {
                     let dist = dist_sq.sqrt();
