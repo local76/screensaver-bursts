@@ -32,7 +32,7 @@ panic = "abort"          # Remove panic unwinding code
 strip = true             # Strip symbols and debuginfo
 
 [package.metadata.deb]
-name = "scene-bursts"
+name = "screensaver-bursts"
 maintainer = "Screensavers Developer <dev@local76.org>"
 extended-description = "Screensaver effect (bursts) part of the screensavers collection."
 depends = "libc6, xterm"
@@ -46,7 +46,7 @@ assets = [
 ]
 
 [package.metadata.generate-rpm]
-name = "scene-bursts"
+name = "screensaver-bursts"
 version = "2026.6.10-1"
 release = "1"
 arch = "x86_64"
