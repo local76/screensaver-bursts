@@ -1,21 +1,21 @@
 use std::path::Path;
-use library::core::build_resources::{
-    write_brand_rc, DEFAULT_COMPANY_NAME, DEFAULT_LEGAL_COPYRIGHT, DEFAULT_PRODUCT_NAME,
-};
+
+#[path = "build_helpers.rs"]
+mod build_helpers;
 
 fn main() {
-    let ico = "assets/scene-bursts.ico";
+    let icon_file_path = "assets/scene-bursts.ico";
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows") { return; }
-    if !Path::new(ico).exists() { return; }
+    if !Path::new(icon_file_path).exists() { return; }
 
-    let pkg = std::env::var("CARGO_PKG_NAME").unwrap_or_default();
-    let rc = write_brand_rc(
+    let package_name = std::env::var("CARGO_PKG_NAME").unwrap_or_default();
+    let resource_script_path = build_helpers::write_brand_rc(
         "build/windows_resource.rc",
-        ico,
-        &pkg,
-        DEFAULT_PRODUCT_NAME,
-        DEFAULT_COMPANY_NAME,
-        DEFAULT_LEGAL_COPYRIGHT,
+        icon_file_path,
+        &package_name,
+        build_helpers::DEFAULT_PRODUCT_NAME,
+        build_helpers::DEFAULT_COMPANY_NAME,
+        build_helpers::DEFAULT_LEGAL_COPYRIGHT,
     );
-    embed_resource::compile(&rc, embed_resource::NONE);
+    embed_resource::compile(&resource_script_path, embed_resource::NONE);
 }
