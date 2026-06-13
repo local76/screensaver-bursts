@@ -1,4 +1,5 @@
 [package]
+license = "MIT"
 name = "bursts"
 version = "2026.6.10-1"
 edition = "2021"
